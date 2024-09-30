@@ -10,11 +10,19 @@ public class CameraController : MonoBehaviour
     [Header("Camera Movement Settings")]
     [SerializeField] private bool useMouseToMove = true;
     [SerializeField] private bool useKeyboardToMove = true;
-    [SerializeField] private float cameraSpeed = 5f;
+    [SerializeField] private bool allowPanningWithMiddleMouse = true;
+    [SerializeField] private float cameraSpeed = 2f;
     [SerializeField] private float borderThickness = 10f;
+
+    [Header("Limit Settings")]
     [SerializeField] private Vector2 cameraLimitsX = new Vector2(-50f, 50f);
     [SerializeField] private Vector2 cameraLimitsY = new Vector2(-50f, 50f);
     [SerializeField] private Vector3 cameraOffset = new Vector3(0, 0, -10f);
+
+    [Header("Pan Settings")]
+    [SerializeField] private float cameraPanSpeed = 5f;
+    [SerializeField][ShowOnly] private Vector3 lastMousePosition;
+    [SerializeField][ShowOnly] private bool isPanning = false;
 
     [Header("Camera Scroll Settings")]
     [SerializeField] private float minZoom = 5f;
@@ -32,6 +40,8 @@ public class CameraController : MonoBehaviour
     [SerializeField][ShowOnly] private Vector3 cameraPosition;
     [SerializeField] private Camera mainCamera;
 
+
+
     private void Awake()
     {
         mainCamera = Camera.main;
@@ -40,6 +50,11 @@ public class CameraController : MonoBehaviour
 
     private void Update()
     {
+        if (allowPanningWithMiddleMouse && isPanning)
+        {
+            HandlePanning();
+        }
+
         MoveCamera(HandleMouseMovement(inputHandler.MousePosition) + moveInputKeyboard);
     }
 
@@ -82,6 +97,30 @@ public class CameraController : MonoBehaviour
         return moveInputMouse;
     }
 
+    public void OnMiddleMousePan(InputAction.CallbackContext context)
+    {
+        if (context.started)
+        {
+            isPanning = true;
+            lastMousePosition = Mouse.current.position.ReadValue(); 
+        }
+        else if (context.canceled)
+        {
+            isPanning = false;
+        }
+    }
+
+    private void HandlePanning()
+    {
+        Vector3 currentMousePosition = Mouse.current.position.ReadValue();
+        Vector3 mouseDelta = mainCamera.ScreenToViewportPoint(currentMousePosition - lastMousePosition);
+
+        Vector3 move = new Vector3(-mouseDelta.x * cameraSpeed * cameraPanSpeed, -mouseDelta.y * cameraSpeed * cameraPanSpeed, 0);
+        mainCamera.transform.position += move;
+
+        lastMousePosition = currentMousePosition;
+    }
+
     public void OnMoveCamera(InputAction.CallbackContext value)
     {
         if (!useKeyboardToMove)
@@ -101,11 +140,11 @@ public class CameraController : MonoBehaviour
 
             if (scrollDelta > 0)
             {
-                targetZoom -= zoomStep; 
+                targetZoom -= zoomStep;
             }
             else if (scrollDelta < 0)
             {
-                targetZoom += zoomStep; 
+                targetZoom += zoomStep;
             }
 
             if (mainCamera.orthographic)

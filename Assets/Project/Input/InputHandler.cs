@@ -11,6 +11,8 @@ public class InputHandler : MonoBehaviour
     [Header("Tile Settings")]
     [SerializeField] private CustomTile currentHoveredTile;
     [SerializeField] private Vector3 currentHoveredTilePosition;
+    [SerializeField] private LayerMask tilemapLayerMask;
+    [SerializeField] private LayerMask grabbableLayerMask;
 
     [Header("Gizmos Settings")]
     [SerializeField] private Color rayColor = Color.red;
@@ -60,32 +62,34 @@ public class InputHandler : MonoBehaviour
     // Detect if the mouse is over a tile and update the current hovered tile
     private void DetectTileUnderMouse()
     {
-        hit = Physics2D.Raycast(worldPosition, Vector2.zero);
+        RaycastHit2D[] hits = Physics2D.RaycastAll(worldPosition, Vector2.zero, tilemapLayerMask);
 
-        if (hit.collider != null && hit.collider is TilemapCollider2D)
+        if (hits.Length > 0)
         {
-            Tilemap tilemap = hit.collider.GetComponent<Tilemap>();
-
-            if (tilemap != null)
+            foreach (RaycastHit2D hit in hits)
             {
-                Vector3Int gridPosition = tilemap.WorldToCell(worldPosition);
-                CustomTile tile = tilemap.GetTile<CustomTile>(gridPosition);
+                if (hit.collider != null && hit.collider is TilemapCollider2D)
+                {
+                    Tilemap tilemap = hit.collider.GetComponent<Tilemap>();
 
-                if (tile != null)
-                {
-                    UpdateHoveredTile(tile, tilemap, gridPosition);
-                }
-                else
-                {
-                    ResetHoveredTile();
+                    if (tilemap != null)
+                    {
+                        Vector3Int gridPosition = tilemap.WorldToCell(worldPosition);
+                        CustomTile tile = tilemap.GetTile<CustomTile>(gridPosition);
+
+                        if (tile != null)
+                        {
+                            UpdateHoveredTile(tile, tilemap, gridPosition);
+                            return; // Exit loop after the first valid tile hit
+                        }
+                    }
                 }
             }
         }
-        else
-        {
-            ResetHoveredTile();
-        }
+
+        ResetHoveredTile(); // If no tile is hit or valid, reset
     }
+
 
     // Updates the currently hovered tile and the highlighter position
     private void UpdateHoveredTile(CustomTile tile, Tilemap tilemap, Vector3Int gridPosition)
@@ -150,7 +154,8 @@ public class InputHandler : MonoBehaviour
     // Tries to pick up a draggable object on mouse click
     private void TryPickUpObject()
     {
-        hit = Physics2D.Raycast(worldPosition, Vector2.zero);
+        hit = Physics2D.Raycast(worldPosition, Vector2.zero, Mathf.Infinity, grabbableLayerMask);
+
         if (hit.collider != null && hit.collider.gameObject.GetComponent<IDraggable>() != null)
         {
             OnPickUpObject?.Invoke(hit.collider.gameObject);
