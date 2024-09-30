@@ -1,6 +1,7 @@
 public enum AIStateType
 {
     Idle,
-    TreeFarm,
+    Wander,
+    ChopWood,
 
 }

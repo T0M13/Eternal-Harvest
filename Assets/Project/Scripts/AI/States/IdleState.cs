@@ -2,13 +2,13 @@ using UnityEngine;
 
 public class IdleState : AIState
 {
-    private string idleStateString;
+    public IdleStateConfig Config;
 
     public override void EnterState(AIAgent agent)
     {
-        if (agent.AiAnimator != null && !string.IsNullOrEmpty(idleStateString))
+        if (agent.AiAnimator != null && !string.IsNullOrEmpty(Config.IdleStateString))
         {
-            agent.AiAnimator.Play(idleStateString);  
+            agent.AiAnimator.Play(Config.IdleStateString);  
         }
     }
 
@@ -21,10 +21,5 @@ public class IdleState : AIState
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(agent.transform.position, 0.5f);
-    }
-
-    public void SetIdleConfig(string idleStateString)
-    {
-        this.idleStateString = idleStateString;
     }
 }

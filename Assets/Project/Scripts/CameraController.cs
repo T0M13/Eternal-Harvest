@@ -102,7 +102,7 @@ public class CameraController : MonoBehaviour
         if (context.started)
         {
             isPanning = true;
-            lastMousePosition = Mouse.current.position.ReadValue(); 
+            lastMousePosition = inputHandler.MousePosition; 
         }
         else if (context.canceled)
         {
@@ -112,7 +112,7 @@ public class CameraController : MonoBehaviour
 
     private void HandlePanning()
     {
-        Vector3 currentMousePosition = Mouse.current.position.ReadValue();
+        Vector3 currentMousePosition = inputHandler.MousePosition;
         Vector3 mouseDelta = mainCamera.ScreenToViewportPoint(currentMousePosition - lastMousePosition);
 
         Vector3 move = new Vector3(-mouseDelta.x * cameraSpeed * cameraPanSpeed, -mouseDelta.y * cameraSpeed * cameraPanSpeed, 0);

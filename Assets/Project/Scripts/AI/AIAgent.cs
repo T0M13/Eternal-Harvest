@@ -15,10 +15,12 @@ public class AIAgent : MonoBehaviour
 
     [Header("Movement")]
     public Vector2 movementVector;
+    private float moveSpeed;
 
     public AIStateMachine StateMachine { get => stateMachine; set => stateMachine = value; }
     public Animator AiAnimator { get => aiAnimator; set => aiAnimator = value; }
     public BoxCollider2D AiCollider { get => aiCollider; set => aiCollider = value; }
+    public float MoveSpeed { get => moveSpeed; set => moveSpeed = value; }
 
     private void OnValidate()
     {
@@ -39,7 +41,6 @@ public class AIAgent : MonoBehaviour
     private void Update()
     {
         stateMachine.Update(this);
-        UpdateAnimator();
     }
 
     private void GetReferences()
@@ -75,12 +76,6 @@ public class AIAgent : MonoBehaviour
     {
         currentStateType = stateConfigs[0].GetStateType();
         stateMachine.Initialize(currentStateType, this);
-    }
-
-    private void UpdateAnimator()
-    {
-        //    aiAnimator.SetFloat("xPos", movementVector.x);
-        //    aiAnimator.SetFloat("yPos", movementVector.y);
     }
 
     public void TransitionToState(AIStateType newState)

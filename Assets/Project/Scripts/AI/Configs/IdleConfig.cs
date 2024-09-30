@@ -14,7 +14,7 @@ public class IdleStateConfig : AIStateConfig
     public override AIState InitializeState(AIAgent agent)
     {
         IdleState idleState = new IdleState();
-        idleState.SetIdleConfig(IdleStateString);
+        idleState.Config = this;
         return idleState;
     }
 }
