@@ -40,6 +40,7 @@ public class DragObject : MonoBehaviour
         objectRenderer = obj.GetComponent<SpriteRenderer>();
         objectCollider = obj.GetComponent<Collider2D>();  // Get the object's collider
 
+        // Only start dragging if the object has both IDraggable and a Collider
         if (draggedObject != null && objectRenderer != null && objectCollider != null)
         {
             CacheOriginalProperties();
@@ -65,19 +66,18 @@ public class DragObject : MonoBehaviour
             objectCollider.enabled = true;
 
             // Check if we are hovering over a valid tile that allows dropping
-            if (inputHandler.CurrentHoveredTile != null && inputHandler.CurrentHoveredTile.CanDrop())
+            Vector3Int gridPosition = inputHandler.GetCurrentHoveredTilePosition();
+            if (inputHandler.CanDropOnTile(gridPosition))
             {
-                // Drop the object at the hovered tile's position
-                Vector3 dropPosition = inputHandler.CurrentHoveredTilePosition;
+                // Drop the object at the hovered tile's position (if it's walkable)
+                Vector3 dropPosition = inputHandler.GetCurrentHoveredTileWorldPosition();
                 (draggedObject as MonoBehaviour).transform.position = new Vector3(dropPosition.x, dropPosition.y, originalPosition.z);
                 inputHandler.ResetHoveredTile();
-                //Debug.Log("Dropped object at valid tile position.");
             }
             else
             {
-                // Teleport the object back to its original position if drop is invalid
+                // Teleport the object back to its original position if drop is invalid (e.g., not walkable)
                 (draggedObject as MonoBehaviour).transform.position = originalPosition;
-                //Debug.Log("Invalid drop. Returning object to original position.");
             }
 
             // Restore original properties

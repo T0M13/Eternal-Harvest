@@ -8,19 +8,17 @@ public class AIAgent : MonoBehaviour
     [SerializeField] private AIStateMachine stateMachine;
     [SerializeField] private Animator aiAnimator;
     [SerializeField] private BoxCollider2D aiCollider;
+    [SerializeField] private MapGenerator mapGenerator;
 
     [Header("State Configurations")]
     [SerializeField] private List<AIStateConfig> stateConfigs;
     [SerializeField][ShowOnly] private AIStateType currentStateType;
-
-    [Header("Movement")]
-    public Vector2 movementVector;
-    private float moveSpeed;
+    [SerializeField][ShowOnly] private bool statePaused = false;
 
     public AIStateMachine StateMachine { get => stateMachine; set => stateMachine = value; }
     public Animator AiAnimator { get => aiAnimator; set => aiAnimator = value; }
     public BoxCollider2D AiCollider { get => aiCollider; set => aiCollider = value; }
-    public float MoveSpeed { get => moveSpeed; set => moveSpeed = value; }
+    public MapGenerator MapGenerator { get => mapGenerator; set => mapGenerator = value; }
 
     private void OnValidate()
     {
@@ -40,6 +38,8 @@ public class AIAgent : MonoBehaviour
 
     private void Update()
     {
+        if (statePaused) return;
+
         stateMachine.Update(this);
     }
 
@@ -55,6 +55,11 @@ public class AIAgent : MonoBehaviour
         {
             try { aiCollider = GetComponent<BoxCollider2D>(); }
             catch { Debug.Log("BoxCollider2D Missing from AIAgent"); }
+        }
+        if (mapGenerator == null)
+        {
+            try { mapGenerator = FindObjectOfType<MapGenerator>(); }
+            catch { Debug.Log("MapGenerator Missing from AIAgent"); }
         }
 
     }
@@ -82,6 +87,16 @@ public class AIAgent : MonoBehaviour
     {
         stateMachine.ChangeState(newState, this);
         currentStateType = newState;
+    }
+
+    public void StateStop()
+    {
+        statePaused = true;
+    }
+
+    public void StateStart()
+    {
+        statePaused = false;
     }
 
     private void OnDrawGizmosSelected()

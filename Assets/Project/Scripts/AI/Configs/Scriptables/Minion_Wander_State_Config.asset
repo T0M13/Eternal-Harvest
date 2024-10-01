@@ -12,12 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 219d542ee5aa7c849b4aec0e0c644157, type: 3}
   m_Name: Minion_Wander_State_Config
   m_EditorClassIdentifier: 
-  walkStateString: Walk
-  idleStateString: Idle
-  idleDuration: 2
-  walkDuration: 2
-  chanceToIdle: 0.3
-  walkableTilemap: {fileID: 0}
+  minTileDistance: 10
+  maxTileDistance: 10
+  distanceBias: 2
+  wanderSpeed: 1
+  adaptiveDistanceReduction: 2
+  walkableLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
+  gizmoColor: {r: 0, g: 1, b: 0, a: 1}
+  maxWanderAttempts: 10
   walkRight: WalkRight
   walkLeft: WalkLeft
   walkUp: WalkUp

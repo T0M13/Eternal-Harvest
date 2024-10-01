@@ -6,42 +6,31 @@ using UnityEngine.Tilemaps;
 public class InputHandler : MonoBehaviour
 {
     [Header("Mouse Settings")]
-    [SerializeField] private Vector2 mousePosition;
+    private Vector2 mousePosition; // Made public to fix missing accessors
 
     [Header("Tile Settings")]
-    [SerializeField] private CustomTile currentHoveredTile;
     [SerializeField] private Vector3 currentHoveredTilePosition;
-    [SerializeField] private LayerMask tilemapLayerMask;
-    [SerializeField] private LayerMask grabbableLayerMask;
-
-    [Header("Gizmos Settings")]
-    [SerializeField] private Color rayColor = Color.red;
-    [SerializeField] private Color hitColor = Color.green;
-    [SerializeField] private float hitSphereRadius = 0.1f;
+    [SerializeField] private Vector3Int currentHoveredTileGridPosition;
 
     [Header("References")]
-    [SerializeField] private GameObject tileHighlighter;  // The GameObject that will follow the mouse
-    [SerializeField] private SpriteRenderer highlighterRenderer;  // SpriteRenderer of the tile highlighter
+    [SerializeField] private GameObject tileHighlighter;
+    [SerializeField] private SpriteRenderer highlighterRenderer;
     [SerializeField] private Color defaultColor = Color.white;
     [SerializeField] private Color validColor = Color.green;
     [SerializeField] private Color invalidColor = Color.red;
 
-    [SerializeField] private Camera mainCamera;
-    private Vector3 worldPosition;
-    private RaycastHit2D hit;
+    private Camera mainCamera;
+    private MapGenerator mapGenerator; // Reference to MapGenerator
+    private bool isDragging = false;
 
+    [HideInInspector] public UnityEvent<GameObject> OnPickUpObject = new UnityEvent<GameObject>(); // Added initialization
+    [HideInInspector] public UnityEvent OnDropObject = new UnityEvent(); // Added initialization
     public Vector2 MousePosition { get => mousePosition; set => mousePosition = value; }
-    public CustomTile CurrentHoveredTile { get => currentHoveredTile; set => currentHoveredTile = value; }
-    public Vector3 CurrentHoveredTilePosition { get => currentHoveredTilePosition; set => currentHoveredTilePosition = value; }
-
-    [HideInInspector] public UnityEvent<GameObject> OnPickUpObject;
-    [HideInInspector] public UnityEvent OnDropObject;
-
-    private bool isDragging = false;  // Flag to indicate if we're dragging
 
     private void Awake()
     {
         mainCamera = Camera.main;
+        mapGenerator = FindObjectOfType<MapGenerator>(); // Fetch the MapGenerator
     }
 
     // Main method for handling mouse movement
@@ -56,55 +45,32 @@ public class InputHandler : MonoBehaviour
     private void UpdateMousePosition(InputAction.CallbackContext value)
     {
         MousePosition = value.ReadValue<Vector2>();
-        worldPosition = mainCamera.ScreenToWorldPoint(new Vector3(MousePosition.x, MousePosition.y, 0));
     }
 
     // Detect if the mouse is over a tile and update the current hovered tile
     private void DetectTileUnderMouse()
     {
-        RaycastHit2D[] hits = Physics2D.RaycastAll(worldPosition, Vector2.zero, tilemapLayerMask);
+        Vector3 worldPosition = mainCamera.ScreenToWorldPoint(new Vector3(MousePosition.x, MousePosition.y, 0));
+        Vector3Int gridPosition = mapGenerator.placeholderTilemap.WorldToCell(worldPosition);
 
-        if (hits.Length > 0)
+        // Check if the tile has properties, and if so, update the highlighter position
+        TileProperty tileProperty = mapGenerator.GetTileProperty(gridPosition);
+
+        if (tileProperty != null)
         {
-            foreach (RaycastHit2D hit in hits)
-            {
-                if (hit.collider != null && hit.collider is TilemapCollider2D)
-                {
-                    Tilemap tilemap = hit.collider.GetComponent<Tilemap>();
-
-                    if (tilemap != null)
-                    {
-                        Vector3Int gridPosition = tilemap.WorldToCell(worldPosition);
-                        CustomTile tile = tilemap.GetTile<CustomTile>(gridPosition);
-
-                        if (tile != null)
-                        {
-                            UpdateHoveredTile(tile, tilemap, gridPosition);
-                            return; // Exit loop after the first valid tile hit
-                        }
-                    }
-                }
-            }
+            currentHoveredTilePosition = mapGenerator.placeholderTilemap.GetCellCenterWorld(gridPosition);
+            currentHoveredTileGridPosition = gridPosition; // Store the grid position
+            tileHighlighter.transform.position = currentHoveredTilePosition;
         }
-
-        ResetHoveredTile(); // If no tile is hit or valid, reset
-    }
-
-
-    // Updates the currently hovered tile and the highlighter position
-    private void UpdateHoveredTile(CustomTile tile, Tilemap tilemap, Vector3Int gridPosition)
-    {
-        CurrentHoveredTile = tile;
-        currentHoveredTilePosition = tilemap.GetCellCenterWorld(gridPosition);
-        tileHighlighter.transform.position = currentHoveredTilePosition;
-
-        //Debug.Log($"Hovering over tile at {gridPosition} (World Position: {currentHoveredTilePosition}): CanDrop = {tile.CanDrop()}");
+        else
+        {
+            ResetHoveredTile();
+        }
     }
 
     // Resets the hovered tile when no valid tile is found
     public void ResetHoveredTile()
     {
-        CurrentHoveredTile = null;
         tileHighlighter.SetActive(false);
     }
 
@@ -113,12 +79,26 @@ public class InputHandler : MonoBehaviour
     {
         if (tileHighlighter != null)
         {
-            if (CurrentHoveredTile != null)
+            if (mapGenerator.GetTileProperty(currentHoveredTileGridPosition) != null)
             {
                 // Only check CanDrop if we are dragging
                 if (isDragging)
                 {
-                    highlighterRenderer.color = CurrentHoveredTile.CanDrop() ? validColor : invalidColor;
+                    Vector3Int gridPosition = currentHoveredTileGridPosition;
+                    TileProperty tileProperty = mapGenerator.GetTileProperty(gridPosition);
+
+                    if (tileProperty != null)
+                    {
+                        // Set the highlighter color based on whether the tile is walkable
+                        if (tileProperty.GetProperty(TilePropertyType.Walkable))
+                        {
+                            highlighterRenderer.color = validColor;
+                        }
+                        else if (tileProperty.GetProperty(TilePropertyType.Blocked))
+                        {
+                            highlighterRenderer.color = invalidColor;
+                        }
+                    }
                 }
                 else
                 {
@@ -131,10 +111,24 @@ public class InputHandler : MonoBehaviour
 
             // No hovered tile, reset the color
             if (highlighterRenderer.color != defaultColor)
+            {
                 highlighterRenderer.color = defaultColor;
+            }
 
             tileHighlighter.SetActive(false);
         }
+    }
+
+    // Returns the current hovered tile's grid position
+    public Vector3Int GetCurrentHoveredTilePosition()
+    {
+        return currentHoveredTileGridPosition;
+    }
+
+    // Returns the current hovered tile's world position
+    public Vector3 GetCurrentHoveredTileWorldPosition()
+    {
+        return currentHoveredTilePosition;
     }
 
     // Called when mouse clicks
@@ -142,59 +136,68 @@ public class InputHandler : MonoBehaviour
     {
         if (value.started)
         {
-            TryPickUpObject();
+            TryPickUpObject(); // Call this to try picking up an object on click
         }
         else if (value.canceled)
         {
-            OnDropObject?.Invoke();
-            StopDragging();
+            StopDragging(); // Call StopDragging when the mouse button is released
         }
     }
 
-    // Tries to pick up a draggable object on mouse click
+    // This method tries to pick up the first draggable object the mouse ray hits
     private void TryPickUpObject()
     {
-        hit = Physics2D.Raycast(worldPosition, Vector2.zero, Mathf.Infinity, grabbableLayerMask);
+        // Convert mouse screen position to world position
+        Vector3 worldPosition = mainCamera.ScreenToWorldPoint(new Vector3(MousePosition.x, MousePosition.y, 0));
 
-        if (hit.collider != null && hit.collider.gameObject.GetComponent<IDraggable>() != null)
+        // Raycast to detect objects in the scene with a collider
+        RaycastHit2D hit = Physics2D.Raycast(worldPosition, Vector2.zero, Mathf.Infinity);
+
+        if (hit.collider != null)
         {
-            OnPickUpObject?.Invoke(hit.collider.gameObject);
-            StartDragging();
+            GameObject clickedObject = hit.collider.gameObject;
+
+            // Check if the object has the IDraggable interface
+            IDraggable draggable = clickedObject.GetComponent<IDraggable>();
+            if (draggable != null)
+            {
+                // Trigger event for starting the dragging action and pass the clicked object
+                OnPickUpObject.Invoke(clickedObject);
+                StartDragging();
+            }
         }
     }
 
-    // Starts dragging, enabling drop checks
     private void StartDragging()
     {
         isDragging = true;
+        // Optionally: Update highlighter to reflect dragging if necessary
     }
 
-    // Stops dragging, disabling drop checks
+
+
     private void StopDragging()
     {
         isDragging = false;
+
+        // Trigger event for stopping the dragging action (drop)
+        OnDropObject.Invoke();
     }
 
-    // Check if mouse is in viewport
+    public bool CanDropOnTile(Vector3Int tilePosition)
+    {
+        TileProperty tileProperty = mapGenerator.GetTileProperty(tilePosition);
+        if (tileProperty != null && tileProperty.GetProperty(TilePropertyType.Walkable))
+        {
+            return true; // Tile allows dropping
+        }
+        return false;  // Tile does not allow dropping
+    }
+
     public bool IsMouseInViewport()
     {
         Vector3 mouseViewportPos = mainCamera.ScreenToViewportPoint(mousePosition);
         return mouseViewportPos.x >= 0 && mouseViewportPos.x <= 1 && mouseViewportPos.y >= 0 && mouseViewportPos.y <= 1;
     }
 
-    // Draw Gizmos for debugging purposes
-    private void OnDrawGizmos()
-    {
-        if (worldPosition != Vector3.zero)
-        {
-            Gizmos.color = rayColor;
-            Gizmos.DrawSphere(worldPosition, hitSphereRadius);
-
-            if (hit.collider != null)
-            {
-                Gizmos.color = hitColor;
-                Gizmos.DrawSphere(hit.point, hitSphereRadius);
-            }
-        }
-    }
 }
